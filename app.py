@@ -39,6 +39,7 @@ HTML_PAGE = """
     <button id="clearBtn" type="button">Clear Fields</button>
     <button id="exportBtn" type="button">Export JSON</button>
     <label style="display:inline-block;">Import JSON <input type="file" id="importJson" accept="application/json" style="width:160px;"></label>
+    <label style="margin-left:10px;">Height: <input type="number" id="fieldHeight" value="16" min="8" max="200" style="width:60px;" /></label>
     <button id="corgiBtn" type="button" title="Release the corgi">🐕</button>
   </div>
   <div id="canvasWrapper"></div>
@@ -67,6 +68,7 @@ const undoBtn = document.getElementById('undoBtn');
 const clearBtn = document.getElementById('clearBtn');
 const exportBtn = document.getElementById('exportBtn');
 const importJson = document.getElementById('importJson');
+const fieldHeightInput = document.getElementById('fieldHeight');
 const corgiBtn = document.getElementById('corgiBtn');
 
 async function doUpload(){
@@ -133,8 +135,8 @@ canvasWrapper.addEventListener('click', (e)=>{
   const clickX = (e.clientX - rect.left) * scaleX;
   const clickY = (e.clientY - rect.top) * scaleY;
   const name = 'Field_' + (fields.length+1);
-  const width = 180; const height = 16;
-  // Left edge at clickX; vertical center at clickY
+  const width = 180;
+  const height = parseInt(fieldHeightInput.value) || 16;
   const leftX = clickX;
   const topY = clickY - height/2;
   fields.push({name:name, x:leftX, y:topY, w:width, h:height});
