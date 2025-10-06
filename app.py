@@ -28,8 +28,8 @@ HTML_PAGE = """
 <body>
   <h1>PDF Field Placer (First Page)</h1>
   <form id="uploadForm">
-    <input type="file" name="pdf" accept="application/pdf" required />
-    <button type="submit">Upload</button>
+    <input type="file" id="pdfInput" name="pdf" accept="application/pdf" required />
+    <button type="submit" style="display:none;">Upload</button>
   </form>
   <div id="controls" style="display:none;">
     <button id="downloadBtn">Download Filled PDF</button>
@@ -61,8 +61,7 @@ const downloadBtn = document.getElementById('downloadBtn');
 const undoBtn = document.getElementById('undoBtn');
 const clearBtn = document.getElementById('clearBtn');
 
-uploadForm.addEventListener('submit', async (e) => {
-  e.preventDefault();
+async function doUpload(){
   const formData = new FormData(uploadForm);
   const res = await fetch('/upload', { method: 'POST', body: formData });
   if (!res.ok) { alert('Upload failed'); return; }
@@ -81,7 +80,11 @@ uploadForm.addEventListener('submit', async (e) => {
     refreshFields();
   };
   img.src = data.image_url;
-});
+}
+
+const pdfInput = document.getElementById('pdfInput');
+pdfInput.addEventListener('change', ()=>{ if(pdfInput.files.length) { doUpload(); }});
+uploadForm.addEventListener('submit', (e)=>{ e.preventDefault(); });
 
 function refreshFields(){
   // remove existing overlay boxes
