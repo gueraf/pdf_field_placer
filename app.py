@@ -101,13 +101,17 @@ function refreshFields(){
     div.textContent = f.name;
     canvasWrapper.appendChild(div);
     const tr = document.createElement('tr');
-    tr.innerHTML = `<td>${i+1}</td><td>${f.name}</td><td>${f.x.toFixed(1)}</td><td>${f.y.toFixed(1)}</td><td>${f.w}</td><td>${f.h}</td><td><button data-i="${i}" class="rm">X</button></td>`;
+    tr.innerHTML = `<td>${i+1}</td><td><input class="fname" data-i="${i}" value="${f.name}" style="width:120px" /></td><td>${f.x.toFixed(1)}</td><td>${f.y.toFixed(1)}</td><td>${f.w}</td><td>${f.h}</td><td><button data-i="${i}" class="rm">X</button></td>`;
     fieldsTableBody.appendChild(tr);
   });
   document.querySelectorAll('.rm').forEach(btn=>btn.addEventListener('click', (e)=>{
     const idx = parseInt(e.target.getAttribute('data-i'));
     fields.splice(idx,1);
     refreshFields();
+  }));
+  document.querySelectorAll('.fname').forEach(inp=>inp.addEventListener('input', (e)=>{
+    const idx = parseInt(e.target.getAttribute('data-i'));
+    fields[idx].name = e.target.value;
   }));
 }
 
@@ -117,12 +121,12 @@ canvasWrapper.addEventListener('click', (e)=>{
   const rect = img.getBoundingClientRect();
   const clickX = (e.clientX - rect.left) * scaleX;
   const clickY = (e.clientY - rect.top) * scaleY;
-  const name = prompt('Field name?', 'Field_' + (fields.length+1));
-  if(!name) return;
-  const width = 180; const height = 16; // PDF units after scaling (roughly matches earlier logic)
-  // Center horizontally at click (clickX is the middle)
-  const centeredX = clickX - width/2;
-  fields.push({name:name, x:centeredX, y:clickY, w:width, h:height});
+  const name = 'Field_' + (fields.length+1);
+  const width = 180; const height = 16;
+  // Left edge at clickX; vertical center at clickY
+  const leftX = clickX;
+  const topY = clickY - height/2;
+  fields.push({name:name, x:leftX, y:topY, w:width, h:height});
   refreshFields();
 });
 
