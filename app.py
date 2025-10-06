@@ -181,19 +181,17 @@ importJson.addEventListener('change', ()=>{
 });
 
 function launchCorgi(){
-  // create a new corgi each click
   const el = document.createElement('div');
   el.className = 'corgi-run';
   el.textContent = '🐕‍🦺';
   document.body.appendChild(el);
-  let pos = -200; // start further left for big size
-  const speed = 5; // faster for large size
   const width = window.innerWidth;
+  let pos = width + 200; // start off-screen right
+  const speed = 5; // px per frame to the left
   function step(){
-    pos += speed;
+    pos -= speed;
     el.style.left = pos + 'px';
-    if(pos > width + 200){
-      // remove and stop
+    if(pos < -200){
       el.remove();
       return;
     }
