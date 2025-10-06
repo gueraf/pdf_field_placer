@@ -114,7 +114,7 @@ function refreshFields(){
     div.textContent = f.name;
     canvasWrapper.appendChild(div);
     const tr = document.createElement('tr');
-    tr.innerHTML = `<td>${i+1}</td><td><input class="fname" data-i="${i}" value="${f.name}" style="width:120px" /></td><td>${f.x.toFixed(1)}</td><td>${f.y.toFixed(1)}</td><td>${f.w}</td><td>${f.h}</td><td><button data-i="${i}" class="rm">X</button></td>`;
+    tr.innerHTML = `<td>${i+1}</td><td><input class="fname" data-i="${i}" value="${f.name}" style="width:120px" /></td><td>${f.x.toFixed(1)}</td><td>${f.y.toFixed(1)}</td><td><input type="number" class="fwidth" data-i="${i}" value="${f.w}" style="width:60px;" /></td><td>${f.h}</td><td><button data-i="${i}" class="rm">X</button></td>`;
     fieldsTableBody.appendChild(tr);
   });
   document.querySelectorAll('.rm').forEach(btn=>btn.addEventListener('click', (e)=>{
@@ -125,6 +125,14 @@ function refreshFields(){
   document.querySelectorAll('.fname').forEach(inp=>inp.addEventListener('input', (e)=>{
     const idx = parseInt(e.target.getAttribute('data-i'));
     fields[idx].name = e.target.value;
+  }));
+  document.querySelectorAll('.fwidth').forEach(inp=>inp.addEventListener('input', (e)=>{
+    const idx = parseInt(e.target.getAttribute('data-i'));
+    let val = parseFloat(e.target.value);
+    if(!isNaN(val) && val>0){
+      fields[idx].w = val;
+      refreshFields();
+    }
   }));
 }
 
