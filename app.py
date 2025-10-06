@@ -35,6 +35,8 @@ HTML_PAGE = """
     <button id="downloadBtn">Download Filled PDF</button>
     <button id="undoBtn" type="button">Undo Last</button>
     <button id="clearBtn" type="button">Clear Fields</button>
+    <button id="exportBtn" type="button">Export JSON</button>
+    <label style="display:inline-block;">Import JSON <input type="file" id="importJson" accept="application/json" style="width:160px;"></label>
   </div>
   <div id="canvasWrapper"></div>
   <div id="fieldsList" style="display:none;">
@@ -60,6 +62,8 @@ const fieldsTableBody = document.querySelector('#fieldsTable tbody');
 const downloadBtn = document.getElementById('downloadBtn');
 const undoBtn = document.getElementById('undoBtn');
 const clearBtn = document.getElementById('clearBtn');
+const exportBtn = document.getElementById('exportBtn');
+const importJson = document.getElementById('importJson');
 
 async function doUpload(){
   const formData = new FormData(uploadForm);
@@ -146,6 +150,31 @@ downloadBtn.addEventListener('click', async ()=>{
 
 undoBtn.addEventListener('click', ()=>{ fields.pop(); refreshFields(); });
 clearBtn.addEventListener('click', ()=>{ fields=[]; refreshFields(); });
+exportBtn.addEventListener('click', ()=>{
+  const dataStr = JSON.stringify(fields, null, 2);
+  const blob = new Blob([dataStr], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'fields.json';
+  a.click();
+});
+importJson.addEventListener('change', ()=>{
+  if(importJson.files.length===0) return;
+  const file = importJson.files[0];
+  const reader = new FileReader();
+  reader.onload = (ev)=>{
+    try {
+      const arr = JSON.parse(ev.target.result);
+      if(Array.isArray(arr)){
+        fields = arr.filter(f=>f && typeof f==='object' && 'x' in f && 'y' in f && 'w' in f && 'h' in f && 'name' in f);
+        refreshFields();
+      } else {
+        alert('Invalid JSON format');
+      }
+    } catch(e){ alert('Failed to parse JSON'); }
+  };
+  reader.readAsText(file);
+});
 </script>
 </body>
 </html>
