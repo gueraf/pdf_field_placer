@@ -1,0 +1,201 @@
+import io
+import fitz
+from fastapi import FastAPI, UploadFile, File
+from fastapi.responses import HTMLResponse, StreamingResponse, JSONResponse
+from typing import List
+from PIL import Image
+
+app = FastAPI()
+
+HTML_PAGE = """
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset='utf-8'/>
+  <title>PDF Field Placer</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 1rem; }
+    #canvasWrapper { position: relative; display: inline-block; }
+    #pdfImage { border: 1px solid #666; }
+    .field-box { position:absolute; border:1px solid red; font-size:10px; background:rgba(255,0,0,0.1); }
+    #fieldsList { margin-top:1rem; }
+    #controls { margin:1rem 0; }
+    #fieldsList table { border-collapse: collapse; }
+    #fieldsList th, #fieldsList td { border:1px solid #ccc; padding:4px 6px; }
+    .small { width:80px; }
+  </style>
+</head>
+<body>
+  <h1>PDF Field Placer (First Page)</h1>
+  <form id="uploadForm">
+    <input type="file" name="pdf" accept="application/pdf" required />
+    <button type="submit">Upload</button>
+  </form>
+  <div id="controls" style="display:none;">
+    <button id="downloadBtn">Download Filled PDF</button>
+    <button id="clearBtn" type="button">Clear Fields</button>
+  </div>
+  <div id="canvasWrapper"></div>
+  <div id="fieldsList" style="display:none;">
+    <h3>Fields</h3>
+    <table id="fieldsTable">
+      <thead><tr><th>#</th><th>Name</th><th>X</th><th>Y</th><th>W</th><th>H</th><th>Remove</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+<script>
+let imageNaturalWidth = 0;
+let imageNaturalHeight = 0;
+let scaleX = 1;
+let scaleY = 1;
+let fields = [];
+let pdfId = null;
+
+const uploadForm = document.getElementById('uploadForm');
+const canvasWrapper = document.getElementById('canvasWrapper');
+const controls = document.getElementById('controls');
+const fieldsList = document.getElementById('fieldsList');
+const fieldsTableBody = document.querySelector('#fieldsTable tbody');
+const downloadBtn = document.getElementById('downloadBtn');
+const clearBtn = document.getElementById('clearBtn');
+
+uploadForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const formData = new FormData(uploadForm);
+  const res = await fetch('/upload', { method: 'POST', body: formData });
+  if (!res.ok) { alert('Upload failed'); return; }
+  const data = await res.json();
+  pdfId = data.id;
+  const img = new Image();
+  img.id = 'pdfImage';
+  img.onload = () => {
+    imageNaturalWidth = img.naturalWidth;
+    imageNaturalHeight = img.naturalHeight;
+    canvasWrapper.innerHTML = '';
+    canvasWrapper.appendChild(img);
+    controls.style.display='block';
+    fieldsList.style.display='block';
+    fields = [];
+    refreshFields();
+  };
+  img.src = data.image_url;
+});
+
+function refreshFields(){
+  // remove existing overlay boxes
+  document.querySelectorAll('.field-box').forEach(n=>n.remove());
+  fieldsTableBody.innerHTML='';
+  const img = document.getElementById('pdfImage');
+  if (!img) return;
+  scaleX = imageNaturalWidth / img.clientWidth;
+  scaleY = imageNaturalHeight / img.clientHeight;
+  fields.forEach((f,i)=>{
+    const div = document.createElement('div');
+    div.className='field-box';
+    div.style.left = (f.x/scaleX) + 'px';
+    div.style.top = (f.y/scaleY) + 'px';
+    div.style.width = (f.w/scaleX) + 'px';
+    div.style.height = (f.h/scaleY) + 'px';
+    div.textContent = f.name;
+    canvasWrapper.appendChild(div);
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${i+1}</td><td>${f.name}</td><td>${f.x.toFixed(1)}</td><td>${f.y.toFixed(1)}</td><td>${f.w}</td><td>${f.h}</td><td><button data-i="${i}" class="rm">X</button></td>`;
+    fieldsTableBody.appendChild(tr);
+  });
+  document.querySelectorAll('.rm').forEach(btn=>btn.addEventListener('click', (e)=>{
+    const idx = parseInt(e.target.getAttribute('data-i'));
+    fields.splice(idx,1);
+    refreshFields();
+  }));
+}
+
+canvasWrapper.addEventListener('click', (e)=>{
+  const img = document.getElementById('pdfImage');
+  if(!img) return;
+  const rect = img.getBoundingClientRect();
+  const clickX = (e.clientX - rect.left) * scaleX;
+  const clickY = (e.clientY - rect.top) * scaleY;
+  const name = prompt('Field name?', 'Field_' + (fields.length+1));
+  if(!name) return;
+  const width = 180; const height = 16; // PDF units after scaling (roughly matches earlier logic)
+  fields.push({name:name, x:clickX, y:clickY, w:width, h:height});
+  refreshFields();
+});
+
+downloadBtn.addEventListener('click', async ()=>{
+  if(!pdfId){ alert('No PDF loaded'); return; }
+  const res = await fetch('/build', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id:pdfId, fields:fields})});
+  if(!res.ok){ alert('Build failed'); return; }
+  const blob = await res.blob();
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'fillable.pdf';
+  a.click();
+});
+
+clearBtn.addEventListener('click', ()=>{ fields=[]; refreshFields(); });
+</script>
+</body>
+</html>
+"""
+
+# In-memory storage for simplicity (not production-safe)
+PDF_STORE = {}
+IMAGE_STORE = {}
+
+@app.post('/upload')
+async def upload_pdf(pdf: UploadFile = File(...)):
+    content = await pdf.read()
+    doc = fitz.open(stream=content, filetype='pdf')
+    page = doc[0]
+    zoom = 2.0
+    mat = fitz.Matrix(zoom, zoom)
+    pix = page.get_pixmap(matrix=mat, alpha=False)
+    img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+    buf = io.BytesIO()
+    img.save(buf, format='PNG')
+    buf.seek(0)
+    pdf_id = str(id(content))
+    PDF_STORE[pdf_id] = content
+    IMAGE_STORE[pdf_id] = buf.getvalue()
+    return JSONResponse({"id": pdf_id, "image_url": f"/image/{pdf_id}"})
+
+@app.get('/image/{pdf_id}')
+async def get_image(pdf_id: str):
+    data = IMAGE_STORE.get(pdf_id)
+    if not data:
+        return JSONResponse({"error": "not found"}, status_code=404)
+    return StreamingResponse(io.BytesIO(data), media_type='image/png')
+
+@app.post('/build')
+async def build_pdf(payload: dict):
+    pdf_id = payload.get('id')
+    fields = payload.get('fields', [])
+    raw = PDF_STORE.get(pdf_id)
+    if raw is None:
+        return JSONResponse({"error":"invalid id"}, status_code=400)
+    doc = fitz.open(stream=raw, filetype='pdf')
+    page = doc[0]
+    for f in fields:
+        # fields stored with PDF coordinate system derived from rendered image at zoom 2.0; we used raw PDF units directly because scaleX uses natural sizes.
+        x = f['x']/2.0  # reverse zoom (since we captured coords after scaleX multiply)
+        y = f['y']/2.0
+        w = f['w']/2.0
+        h = f['h']/2.0
+        rect = fitz.Rect(x, y, x+w, y+h)
+        widget = fitz.Widget()
+        widget.rect = rect
+        widget.field_type = fitz.PDF_WIDGET_TYPE_TEXT
+        widget.field_name = f['name']
+        widget.text_font = "Helv"
+        widget.text_fontsize = 9
+        page.add_widget(widget)
+    out_buf = io.BytesIO()
+    doc.save(out_buf, garbage=4, deflate=True, clean=True)
+    doc.close()
+    out_buf.seek(0)
+    return StreamingResponse(out_buf, media_type='application/pdf', headers={'Content-Disposition':'attachment; filename="fillable.pdf"'})
+
+@app.get('/')
+async def index():
+    return HTMLResponse(HTML_PAGE)
