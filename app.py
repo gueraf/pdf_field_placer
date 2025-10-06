@@ -33,6 +33,7 @@ HTML_PAGE = """
   </form>
   <div id="controls" style="display:none;">
     <button id="downloadBtn">Download Filled PDF</button>
+    <button id="undoBtn" type="button">Undo Last</button>
     <button id="clearBtn" type="button">Clear Fields</button>
   </div>
   <div id="canvasWrapper"></div>
@@ -57,6 +58,7 @@ const controls = document.getElementById('controls');
 const fieldsList = document.getElementById('fieldsList');
 const fieldsTableBody = document.querySelector('#fieldsTable tbody');
 const downloadBtn = document.getElementById('downloadBtn');
+const undoBtn = document.getElementById('undoBtn');
 const clearBtn = document.getElementById('clearBtn');
 
 uploadForm.addEventListener('submit', async (e) => {
@@ -118,7 +120,9 @@ canvasWrapper.addEventListener('click', (e)=>{
   const name = prompt('Field name?', 'Field_' + (fields.length+1));
   if(!name) return;
   const width = 180; const height = 16; // PDF units after scaling (roughly matches earlier logic)
-  fields.push({name:name, x:clickX, y:clickY, w:width, h:height});
+  // Center horizontally at click (clickX is the middle)
+  const centeredX = clickX - width/2;
+  fields.push({name:name, x:centeredX, y:clickY, w:width, h:height});
   refreshFields();
 });
 
@@ -133,6 +137,7 @@ downloadBtn.addEventListener('click', async ()=>{
   a.click();
 });
 
+undoBtn.addEventListener('click', ()=>{ fields.pop(); refreshFields(); });
 clearBtn.addEventListener('click', ()=>{ fields=[]; refreshFields(); });
 </script>
 </body>
