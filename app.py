@@ -251,6 +251,8 @@ importJson.addEventListener('change', ()=>{
       if(Array.isArray(arr)){
         fields = arr.filter(f=>f && typeof f==='object' && 'x' in f && 'y' in f && 'w' in f && 'h' in f && 'name' in f);
         refreshFields();
+        // allow re-importing the same file again by clearing the file input value
+        importJson.value='';
       } else {
         alert('Invalid JSON format');
       }
