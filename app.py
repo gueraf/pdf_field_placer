@@ -17,7 +17,9 @@ HTML_PAGE = """
     body { font-family: Arial, sans-serif; margin: 1rem; }
     #canvasWrapper { position: relative; display: inline-block; }
     #pdfImage { border: 1px solid #666; }
-    .field-box { position:absolute; border:1px solid red; font-size:10px; background:rgba(255,0,0,0.1); }
+    .field-box { position:absolute; border:1px solid red; font-size:10px; background:rgba(255,0,0,0.1); cursor:move; box-sizing:border-box; }
+    .field-box .resize-handle { position:absolute; top:0; right:0; width:6px; height:100%; cursor:ew-resize; background:rgba(255,0,0,0.3); }
+    .field-box .label { pointer-events:none; padding:0 2px; }
     .corgi-run { position:fixed; top:4px; left:0; font-size:140px; pointer-events:none; z-index:1000; }
     #fieldsList { margin-top:1rem; }
     #controls { margin:1rem 0; }
@@ -105,14 +107,79 @@ function refreshFields(){
   scaleX = imageNaturalWidth / img.clientWidth;
   scaleY = imageNaturalHeight / img.clientHeight;
   fields.forEach((f,i)=>{
+    // create overlay box with drag + resize
     const div = document.createElement('div');
     div.className='field-box';
+    div.dataset.i = i;
     div.style.left = (f.x/scaleX) + 'px';
     div.style.top = (f.y/scaleY) + 'px';
     div.style.width = (f.w/scaleX) + 'px';
     div.style.height = (f.h/scaleY) + 'px';
-    div.textContent = f.name;
+    const label = document.createElement('div');
+    label.className='label';
+    label.textContent = f.name;
+    const handle = document.createElement('div');
+    handle.className='resize-handle';
+    div.appendChild(label);
+    div.appendChild(handle);
     canvasWrapper.appendChild(div);
+
+    // dragging
+    let dragStart = null;
+    div.addEventListener('mousedown', (ev)=>{
+      if(ev.target === handle) return; // resize case handled below
+      ev.preventDefault();
+      dragStart = {x:ev.clientX, y:ev.clientY, origX:f.x, origY:f.y};
+      window.addEventListener('mousemove', onDrag);
+      window.addEventListener('mouseup', stopDrag);
+    });
+    function onDrag(ev){
+      if(!dragStart) return;
+      const dx = (ev.clientX - dragStart.x) * scaleX;
+      const dy = (ev.clientY - dragStart.y) * scaleY;
+      f.x = dragStart.origX + dx;
+      f.y = dragStart.origY + dy;
+      div.style.left = (f.x/scaleX) + 'px';
+      div.style.top = (f.y/scaleY) + 'px';
+      // live update table cells (X,Y columns)
+      const row = fieldsTableBody.children[i];
+      if(row){
+        row.children[2].textContent = f.x.toFixed(1);
+        row.children[3].textContent = f.y.toFixed(1);
+      }
+    }
+    function stopDrag(){
+      dragStart = null;
+      window.removeEventListener('mousemove', onDrag);
+      window.removeEventListener('mouseup', stopDrag);
+    }
+
+    // resizing
+    let resizeStart = null;
+    handle.addEventListener('mousedown', (ev)=>{
+      ev.preventDefault(); ev.stopPropagation();
+      resizeStart = {x:ev.clientX, origW:f.w};
+      window.addEventListener('mousemove', onResize);
+      window.addEventListener('mouseup', stopResize);
+    });
+    function onResize(ev){
+      if(!resizeStart) return;
+      const dx = (ev.clientX - resizeStart.x) * scaleX;
+      f.w = Math.max(5, resizeStart.origW + dx);
+      div.style.width = (f.w/scaleX) + 'px';
+      const row = fieldsTableBody.children[i];
+      if(row){
+        const widthInput = row.querySelector('.fwidth');
+        if(widthInput) widthInput.value = f.w.toFixed(0);
+      }
+    }
+    function stopResize(){
+      resizeStart = null;
+      window.removeEventListener('mousemove', onResize);
+      window.removeEventListener('mouseup', stopResize);
+    }
+    
+    // duplicate legacy block removed
     const tr = document.createElement('tr');
     tr.innerHTML = `<td>${i+1}</td><td><input class="fname" data-i="${i}" value="${f.name}" style="width:120px" /></td><td>${f.x.toFixed(1)}</td><td>${f.y.toFixed(1)}</td><td><input type="number" class="fwidth" data-i="${i}" value="${f.w}" style="width:60px;" /></td><td>${f.h}</td><td><button data-i="${i}" class="rm">X</button></td>`;
     fieldsTableBody.appendChild(tr);
@@ -139,6 +206,8 @@ function refreshFields(){
 canvasWrapper.addEventListener('click', (e)=>{
   const img = document.getElementById('pdfImage');
   if(!img) return;
+  // Only create a new field when the image itself is clicked, not when clicking/dragging existing boxes
+  if(e.target !== img) return;
   const rect = img.getBoundingClientRect();
   const clickX = (e.clientX - rect.left) * scaleX;
   const clickY = (e.clientY - rect.top) * scaleY;
