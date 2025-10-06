@@ -18,7 +18,7 @@ HTML_PAGE = """
     #canvasWrapper { position: relative; display: inline-block; }
     #pdfImage { border: 1px solid #666; }
     .field-box { position:absolute; border:1px solid red; font-size:10px; background:rgba(255,0,0,0.1); }
-#corgi { position:fixed; top:4px; left:0; font-size:28px; pointer-events:none; display:none; z-index:1000; }
+    .corgi-run { position:fixed; top:4px; left:0; font-size:140px; pointer-events:none; z-index:1000; }
     #fieldsList { margin-top:1rem; }
     #controls { margin:1rem 0; }
     #fieldsList table { border-collapse: collapse; }
@@ -27,7 +27,7 @@ HTML_PAGE = """
   </style>
 </head>
 <body>
-  <div id="corgi">🐕‍🦺</div>
+
   <h1>PDF Field Placer (First Page)</h1>
   <form id="uploadForm">
     <input type="file" id="pdfInput" name="pdf" accept="application/pdf" required />
@@ -68,8 +68,6 @@ const clearBtn = document.getElementById('clearBtn');
 const exportBtn = document.getElementById('exportBtn');
 const importJson = document.getElementById('importJson');
 const corgiBtn = document.getElementById('corgiBtn');
-const corgiEl = document.getElementById('corgi');
-let corgiTimer = null;
 
 async function doUpload(){
   const formData = new FormData(uploadForm);
@@ -182,23 +180,29 @@ importJson.addEventListener('change', ()=>{
   reader.readAsText(file);
 });
 
-function startCorgi(){
-  if(corgiTimer){ return; }
-  corgiEl.style.display='block';
-  let pos = -60;
-  const speed = 2; // px per frame
-  const step = ()=>{
+function launchCorgi(){
+  // create a new corgi each click
+  const el = document.createElement('div');
+  el.className = 'corgi-run';
+  el.textContent = '🐕‍🦺';
+  document.body.appendChild(el);
+  let pos = -200; // start further left for big size
+  const speed = 5; // faster for large size
+  const width = window.innerWidth;
+  function step(){
     pos += speed;
-    corgiEl.style.left = pos + 'px';
-    if(pos > window.innerWidth){
-       pos = -60; // loop
+    el.style.left = pos + 'px';
+    if(pos > width + 200){
+      // remove and stop
+      el.remove();
+      return;
     }
-    corgiTimer = requestAnimationFrame(step);
-  };
-  corgiTimer = requestAnimationFrame(step);
+    requestAnimationFrame(step);
+  }
+  step();
 }
 
-corgiBtn.addEventListener('click', startCorgi);
+corgiBtn.addEventListener('click', launchCorgi);
 </script>
 </body>
 </html>
