@@ -138,7 +138,7 @@ canvasWrapper.addEventListener('click', (e)=>{
   const width = 180;
   const height = parseInt(fieldHeightInput.value) || 16;
   const leftX = clickX;
-  const topY = clickY - height/2;
+  const topY = clickY - height;
   fields.push({name:name, x:leftX, y:topY, w:width, h:height});
   refreshFields();
 });
