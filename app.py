@@ -18,6 +18,7 @@ HTML_PAGE = """
     #canvasWrapper { position: relative; display: inline-block; }
     #pdfImage { border: 1px solid #666; }
     .field-box { position:absolute; border:1px solid red; font-size:10px; background:rgba(255,0,0,0.1); }
+#corgi { position:fixed; top:4px; left:0; font-size:28px; pointer-events:none; display:none; z-index:1000; }
     #fieldsList { margin-top:1rem; }
     #controls { margin:1rem 0; }
     #fieldsList table { border-collapse: collapse; }
@@ -26,6 +27,7 @@ HTML_PAGE = """
   </style>
 </head>
 <body>
+  <div id="corgi">🐕‍🦺</div>
   <h1>PDF Field Placer (First Page)</h1>
   <form id="uploadForm">
     <input type="file" id="pdfInput" name="pdf" accept="application/pdf" required />
@@ -37,6 +39,7 @@ HTML_PAGE = """
     <button id="clearBtn" type="button">Clear Fields</button>
     <button id="exportBtn" type="button">Export JSON</button>
     <label style="display:inline-block;">Import JSON <input type="file" id="importJson" accept="application/json" style="width:160px;"></label>
+    <button id="corgiBtn" type="button" title="Release the corgi">🐕</button>
   </div>
   <div id="canvasWrapper"></div>
   <div id="fieldsList" style="display:none;">
@@ -64,6 +67,9 @@ const undoBtn = document.getElementById('undoBtn');
 const clearBtn = document.getElementById('clearBtn');
 const exportBtn = document.getElementById('exportBtn');
 const importJson = document.getElementById('importJson');
+const corgiBtn = document.getElementById('corgiBtn');
+const corgiEl = document.getElementById('corgi');
+let corgiTimer = null;
 
 async function doUpload(){
   const formData = new FormData(uploadForm);
@@ -175,6 +181,24 @@ importJson.addEventListener('change', ()=>{
   };
   reader.readAsText(file);
 });
+
+function startCorgi(){
+  if(corgiTimer){ return; }
+  corgiEl.style.display='block';
+  let pos = -60;
+  const speed = 2; // px per frame
+  const step = ()=>{
+    pos += speed;
+    corgiEl.style.left = pos + 'px';
+    if(pos > window.innerWidth){
+       pos = -60; // loop
+    }
+    corgiTimer = requestAnimationFrame(step);
+  };
+  corgiTimer = requestAnimationFrame(step);
+}
+
+corgiBtn.addEventListener('click', startCorgi);
 </script>
 </body>
 </html>
