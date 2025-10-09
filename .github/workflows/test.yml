@@ -1,0 +1,28 @@
+name: Test App Startup
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+      
+      - name: Install dependencies
+        run: uv sync
+      
+      - name: Test app starts
+        run: |
+          timeout 10s uv run uvicorn app:app --host 127.0.0.1 --port 8011 &
+          pid=$!
+          sleep 5
+          curl -f http://127.0.0.1:8011/ || exit 1
+          kill $pid
